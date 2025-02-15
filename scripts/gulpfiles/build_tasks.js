@@ -663,15 +663,6 @@ async function buildLangfileShims() {
   // Create output directory.
   fs.mkdirSync(path.join(RELEASE_DIR, 'msg'), {recursive: true});
 
-  // Get the names of the exports from the langfile by require()ing
-  // msg/messages.js and letting it mutate the (global) Blockly.Msg.
-  // (We have to do it this way because messages.js is a script and
-  // not a CJS module with exports.)
-  globalThis.Blockly = {Msg: {}};
-  require('../../msg/messages.js');
-  const exportedNames = Object.keys(globalThis.Blockly.Msg);
-  delete globalThis.Blockly;
-
   await Promise.all(getLanguages().map(async (lang) => {
     // Write an ESM wrapper that imports the CJS module and re-exports
     // its named exports.
@@ -681,9 +672,8 @@ async function buildLangfileShims() {
 
     await fsPromises.writeFile(wrapperPath,
         `import ${safeLang} from '${cjsPath}';
-export const {
-${exportedNames.map((name) => `  ${name},`).join('\n')}
-} = ${safeLang};
+import MessageKeys from '${cjsPath}';
+export default MessageKeys = ${safeLang};
 `);
   }));
 }
